@@ -32,9 +32,15 @@ jobs:
       - run: npx playwright install --with-deps chrome
       - run: node tests/browser.cjs
   native-panel:
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, postgres]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - name: Native local panel discovery and subscription prefix integration
+        env:
+          PASARGUARD_TEST_DATABASE: ${{ matrix.database }}
         run: bash tests/install_native_linux.sh

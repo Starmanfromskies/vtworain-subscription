@@ -5,11 +5,17 @@ set -Eeuo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 NAME=vtwsub-pasarguard-ci
+DATABASE_ARGS=()
+if [[ "${PASARGUARD_TEST_DATABASE:-sqlite}" == postgres ]]; then
+  docker run -d --name vtwsub-postgres-ci -e POSTGRES_USER=vtwci -e POSTGRES_PASSWORD=SYNTHETIC-CI-ONLY -e POSTGRES_DB=vtwci -p 127.0.0.1:15432:5432 postgres:16 >/dev/null
+  for attempt in {1..40}; do docker exec vtwsub-postgres-ci pg_isready -U vtwci >/dev/null 2>&1 && break; sleep 1; done
+  DATABASE_ARGS=(-e SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://vtwci:SYNTHETIC-CI-ONLY@127.0.0.1:15432/vtwci)
+fi
 docker run -d --name "$NAME" --network host \
   -e UVICORN_HOST=127.0.0.1 -e UVICORN_PORT=18080 \
   -e SUDO_USERNAME=ciowner -e SUDO_PASSWORD=SYNTHETIC-CI-ONLY \
-  "${PASARGUARD_TEST_IMAGE:-pasarguard/panel:latest}" >/dev/null
-trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true' EXIT
+  "${DATABASE_ARGS[@]}" "${PASARGUARD_TEST_IMAGE:-pasarguard/panel:latest}" >/dev/null
+trap 'docker rm -f "$NAME" vtwsub-postgres-ci >/dev/null 2>&1 || true' EXIT
 for attempt in {1..90}; do
   code=$(curl --noproxy '*' -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/settings || true)
   [[ "$code" == 401 || "$code" == 403 ]] && break
