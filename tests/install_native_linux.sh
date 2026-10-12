@@ -7,6 +7,7 @@ cd "$ROOT"
 NAME=vtwsub-pasarguard-ci
 docker run -d --name "$NAME" --network host \
   -e UVICORN_HOST=127.0.0.1 -e UVICORN_PORT=18080 \
+  -e DEBUG=true \
   -e SUDO_USERNAME=ciowner -e SUDO_PASSWORD=SYNTHETIC-CI-ONLY \
   "${PASARGUARD_TEST_IMAGE:-pasarguard/panel:latest}" >/dev/null
 trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true' EXIT

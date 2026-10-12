@@ -94,6 +94,8 @@ async def identity():
         if admin:
             username=admin.username;aid=admin.id
         else:
+            debug=getattr(getattr(config,'runtime_settings',None),'debug',getattr(config,'DEBUG',False))
+            if not debug:raise ValueError('An existing active database owner is required by a production panel')
             sudoers=getattr(getattr(config,'auth_settings',None),'sudoers',{})
             username=next(iter(sudoers),None) or getattr(config,'SUDO_USERNAME',None)
             if not username:raise ValueError('An active existing panel owner is required')
