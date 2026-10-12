@@ -4,6 +4,9 @@ import json
 import os
 import shutil
 import subprocess
+import re
+import time
+from urllib.request import build_opener,ProxyHandler
 from pathlib import Path
 
 RUNTIME=Path('/opt/vtworain-subscription')
@@ -21,6 +24,16 @@ def checked_directory(value):
     directory=Path(value).resolve()
     if directory.parent!=BASE or directory==BASE:raise ValueError('Use a direct child of '+str(BASE))
     return directory
+
+def wait_ready(port,timeout=20):
+    opener=build_opener(ProxyHandler({}));deadline=time.monotonic()+timeout
+    while time.monotonic()<deadline:
+        try:
+            with opener.open('http://127.0.0.1:'+str(port)+'/healthz',timeout=2) as response:
+                if json.loads(response.read())['status']=='ok':return
+        except (OSError,ValueError,KeyError):pass
+        time.sleep(.25)
+    raise RuntimeError('Restored files are in place, but the previous subscription service is not healthy')
 
 def capture(directory):
     directory.mkdir(parents=True,mode=0o700,exist_ok=False)
@@ -56,7 +69,11 @@ def restore(directory):
     quiet('systemctl','daemon-reload')
     if state['enabled']:quiet('systemctl','enable','vtworain-subscription')
     else:quiet('systemctl','disable','vtworain-subscription')
-    if state['active']:subprocess.run(['systemctl','start','vtworain-subscription'],check=True)
+    if state['active']:
+        subprocess.run(['systemctl','start','vtworain-subscription'],check=True)
+        unit=Path('/etc/systemd/system/vtworain-subscription.service').read_text()
+        port=re.search(r'--bind 127\.0\.0\.1:(\d+)',unit)
+        if port:wait_ready(port[1])
     if state['nginx_active']:
         subprocess.run(['nginx','-t'],check=True)
         subprocess.run(['systemctl','reload','nginx'],check=True)

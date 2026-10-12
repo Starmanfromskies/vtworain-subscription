@@ -3,12 +3,14 @@ import json
 import sys
 import threading
 import unittest
+from unittest.mock import patch,MagicMock
 from pathlib import Path
 from urllib.request import Request,urlopen
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import app
 import deploy
+import backup
 
 CONFIG={'upstream':'http://127.0.0.1:18080','public_url':'https://subscription.example.com','mode':'passthrough'}
 TOKEN='synthetic.'+'A'*43
@@ -89,6 +91,12 @@ class GatewayTest(unittest.TestCase):
         finally:server.shutdown();server.server_close();thread.join()
 
 class DeployTest(unittest.TestCase):
+    def test_rollback_waits_for_worker_readiness(self):
+        response=MagicMock();response.__enter__.return_value.read.return_value=b'{"status":"ok"}'
+        opener=MagicMock();opener.open.side_effect=[OSError('not bound yet'),response]
+        with patch.object(backup,'build_opener',return_value=opener),patch.object(backup.time,'sleep'):
+            backup.wait_ready(19839,timeout=1)
+        self.assertEqual(opener.open.call_count,2)
     def test_safe_http_config(self):
         files=deploy.render('subscription.example.com','http://127.0.0.1:18080','pasarguard',8080,19839,'off')
         self.assertIn('listen 8080;',files['nginx.conf']);self.assertIn('access_log off;',files['nginx.conf']);self.assertNotIn('ssl_certificate',files['nginx.conf'])
