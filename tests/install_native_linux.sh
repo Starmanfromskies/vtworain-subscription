@@ -7,7 +7,6 @@ cd "$ROOT"
 NAME=vtwsub-pasarguard-ci
 docker run -d --name "$NAME" --network host \
   -e UVICORN_HOST=127.0.0.1 -e UVICORN_PORT=18080 \
-  -e DEBUG=true \
   -e SUDO_USERNAME=ciowner -e SUDO_PASSWORD=SYNTHETIC-CI-ONLY \
   "${PASARGUARD_TEST_IMAGE:-pasarguard/panel:latest}" >/dev/null
 trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true' EXIT
@@ -16,7 +15,23 @@ for attempt in {1..90}; do
   [[ "$code" == 401 || "$code" == 403 ]] && break
   sleep 2
 done
-# Initialize the native token path using only the synthetic CI environment owner.
+# Provision an existing owner fixture in this disposable panel's database.
+docker exec -i "$NAME" python - <<'PY'
+import asyncio,inspect
+from sqlalchemy import select
+from app.db import GetDB,models
+from app.models.admin import hash_password
+async def setup():
+ async with GetDB() as db:
+  role=(await db.execute(select(models.AdminRole).where(models.AdminRole.is_owner.is_(True)))).scalars().first()
+  if not role:
+   role=models.AdminRole(name='CI Owner',is_owner=True);db.add(role);await db.commit();await db.refresh(role)
+  password=hash_password('SYNTHETIC-CI-ONLY')
+  if inspect.isawaitable(password):password=await password
+  db.add(models.Admin(username='ciowner',hashed_password=password,role_id=role.id));await db.commit()
+asyncio.run(setup())
+PY
+# Initialize the native token path with an ordinary production owner login.
 docker exec -i "$NAME" python - <<'PY'
 from urllib.request import Request,urlopen
 from urllib.parse import urlencode

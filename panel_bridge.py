@@ -144,7 +144,7 @@ async def execute(request):
     if command=='snapshot':return dict(describe,subscription=current['subscription'])
     if command!='update':raise ValueError('Unsupported integration command')
     new=request['url'];parsed=urlsplit(new)
-    if new and (parsed.scheme not in ('http','https') or not parsed.hostname or parsed.query or parsed.fragment or parsed.username or parsed.password or parsed.path):
+    if not request.get('restore') and new and (parsed.scheme not in ('http','https') or not parsed.hostname or parsed.query or parsed.fragment or parsed.username or parsed.password or parsed.path):
         raise ValueError('Use a subscription origin URL without a private path or credentials')
     old=current['subscription'].get('url_prefix','');expected=request['expected_url']
     if old==new:

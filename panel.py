@@ -143,7 +143,7 @@ def restore(backup):
     if current['old_url']==journal['old_url']:return
     if current['old_url']!=journal['new_url']:raise ValueError('Panel URL changed independently; automatic panel rollback withheld')
     run_bridge(integration['locator'],'update',{'fingerprint':integration['fingerprint'],'expected_url':journal['new_url'],
-        'url':journal['old_url'],'remove_key':not journal['old_key_present']})
+        'url':journal['old_url'],'remove_key':not journal['old_key_present'],'restore':True})
 
 
 if __name__=='__main__':
