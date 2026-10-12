@@ -1,0 +1,30 @@
+name: Verify subscription installer
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  linux:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Backend regression
+        run: python3 -B -m unittest discover -s tests -v
+      - name: Shell syntax
+        run: bash -n install.sh && bash -n tests/install_linux.sh
+      - name: Disposable real installation, HTTPS and rollback
+        run: bash tests/install_linux.sh
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright
+      - run: npx playwright install --with-deps chrome
+      - run: node tests/browser.cjs

@@ -1,0 +1,48 @@
+{
+  "exported_at": "2026-10-12T03:50:46Z",
+  "frontend_sha256": "46039ed428fbea6d228f4546c8f1a44af4dc425ff46f7fdc65d697c36d28236c",
+  "asset_base": "/tg3xbot-assets/redesign-20260915-server-qr-v1/",
+  "verified_against_active_browser_response": true,
+  "assets": [
+    {
+      "file": "assets/vazirmatn.woff2",
+      "sha256": "4e3fa217d38fdafc1fea4414ceb58ca5e662cf0ab5fa735a8c8c20e8b42cad92",
+      "bytes": 111152
+    },
+    {
+      "file": "server-labels.js",
+      "sha256": "a59bc40c31a989816641a403e718944a3d80751a3977ca237e7355546123c3d0",
+      "bytes": 953
+    },
+    {
+      "file": "assets/qrcode.js",
+      "sha256": "c541ef06327885a8415bca8df6071e14189b4855336def4f36db54bde8484f36",
+      "bytes": 19927
+    },
+    {
+      "file": "assets/lucide.js",
+      "sha256": "3411692820cb8d47543f69496aa25fd603a358f4498046f41c508a5a3342210e",
+      "bytes": 357796
+    },
+    {
+      "file": "live-wireguard-v2.js",
+      "sha256": "d4e5ddacd029a7cbab9a52a81d281eaacccf78f447fcd37dd77d44933f3897b3",
+      "bytes": 14859
+    },
+    {
+      "file": "assets/v2box-icon.png",
+      "sha256": "dd08f868301129d91f62a1b4b334393c70a13341d1ffbbe1e18c80ee262ea46a",
+      "bytes": 14642
+    },
+    {
+      "file": "assets/v2rayng-icon.png",
+      "sha256": "37a271056e6076f7f16d4dafa362e68cd22c155bfed6ff71639baf8da0f15234",
+      "bytes": 17843
+    },
+    {
+      "file": "assets/v2rayn-icon-20261001.png",
+      "sha256": "dc5577105e8806e4ac70137052ddb796734b773888d7bc39a454cb0f1c0d7f31",
+      "bytes": 8771
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.zip
+*.tar.gz
+.venv/
+.env
+config.json
+*.private.*
+artifacts/
+preview-config.json
+google-services.json

@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<base href="/tg3xbot-assets/redesign-20260915-server-qr-v1/">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0b0d">
+<title>اشتراک شما</title>
+<script>
+window.subscriptionRequest=(function(){
+ const p=location.pathname.split('/').filter(Boolean),id=p[0]==='sub'?p[1]:p[0];
+ const signed=/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/.test(id||'')&&(id||'').length<=512;
+ if(!signed&&!/^[A-Za-z0-9_-]{6,80}$/.test(id||''))return Promise.resolve({error:true});
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+ return fetch('/sub/'+encodeURIComponent(id)+'/?raw=1',{cache:'no-store',headers:{Accept:'text/plain,*/*'},signal:controller.signal})
+ .then(async response=>({response,body:await response.text()})).catch(()=>({error:true})).finally(()=>clearTimeout(timer));
+})();
+(function(){
+ const d=document.documentElement,u=navigator.userAgent||'';
+ d.dataset.os=/iPhone|iPad|iPod/.test(u)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)?'ios':/Android/.test(u)?'android':/Windows/.test(u)?'windows':'other';
+ /* dashboard design: tabs on phones */
+ d.classList.add('d4');d.dataset.tabs='';
+})();
+</script>
+<link rel="preload" href="assets/vazirmatn.woff2" as="font" type="font/woff2" crossorigin>
+<style>
+@font-face{font-family:Vazir;src:url(assets/vazirmatn.woff2) format('woff2');font-display:swap}
+/* ================= shared structure (all concepts) ================= */
+*{box-sizing:border-box;letter-spacing:0}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;min-height:100vh;font:15px/1.7 Vazir,-apple-system,"Segoe UI",Tahoma,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button,input{font:inherit;color:inherit}button{border:0;background:none;padding:0;cursor:pointer}a{color:inherit;text-decoration:none}
+button,a,label{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+[hidden]{display:none!important}
+svg.lucide{width:18px;height:18px;stroke-width:2;flex:none}
+main{max-width:1040px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-right)) calc(100px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+header{display:flex;align-items:center;gap:10px;height:60px}
+.brand-mark{display:none}
+.secure{display:inline-flex;align-items:center;gap:7px;font-size:13px}
+h1{margin:0;line-height:1.35;overflow-wrap:anywhere;unicode-bidi:plaintext;text-align:right}
+.identity-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:12px}
+.status{display:inline-flex;align-items:center;gap:6px;font-weight:700}
+.status b{width:7px;height:7px;border-radius:50%;background:currentColor}
+.pass{position:relative}
+.pass-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.gauge{position:relative;flex:none}
+.gauge>span{position:absolute;inset:0;display:grid;place-content:center;text-align:center;line-height:1.1;font-weight:800}
+.gauge small{display:block;font-size:10px;font-weight:600}
+@property --p{syntax:"<number>";inherits:true;initial-value:0}
+.figures{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.big-number{display:flex;align-items:baseline;gap:5px;font-weight:800;font-variant-numeric:tabular-nums}
+.days{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 6px}.days svg{display:none}.days strong{white-space:nowrap}
+.progress{position:relative;overflow:hidden}
+.progress span{position:absolute;inset:0 0 0 auto;width:0;transition:width 1s cubic-bezier(.22,1,.36,1)}
+.ascii{display:none}
+.pass-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px}
+.disclosure{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:46px;text-align:right}
+.disclosure svg{transition:transform .35s}.disclosure[aria-expanded=true]>svg:last-child{transform:rotate(180deg)}
+.expand{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s cubic-bezier(.22,1,.36,1)}
+.expand>div{overflow:hidden;min-height:0}.expand.open{grid-template-rows:1fr}
+.stats{display:grid;grid-template-columns:1fr 1fr;margin:0}
+.stats div{padding:10px 12px}.stats dt{display:flex;align-items:center;gap:6px;font-size:11.5px}.stats dt svg{width:14px;height:14px}.stats dd{margin:2px 0 0;font-weight:700}
+.tabs{display:none}
+.group-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.group-title h2{display:flex;align-items:center;gap:7px;margin:0;font-size:15px}
+.icon-button{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:12px;transition:transform .35s cubic-bezier(.2,1.3,.4,1)}
+.icon-button:active{transform:scale(.9)}
+.icon-button.disclosure{width:40px;height:40px;min-height:0}.icon-button.disclosure svg{transform:none!important}
+.steps{display:grid;gap:10px}
+.step{display:flex;gap:12px;align-items:flex-start}
+.step>b{display:grid;place-items:center;flex:none;width:28px;height:28px;font-size:13px}
+.step h3{margin:0;font-size:15px}.step p{margin:0;font-size:12.5px;line-height:1.8}
+.apps{display:flex;flex-direction:column}
+.app{position:relative;display:flex;align-items:center;gap:12px;padding:12px 0}
+.app.rec{order:-1}
+.app-brand{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.app-brand img{width:44px;height:44px;flex:none;object-fit:contain;border-radius:11px;background:#000}
+.app-brand img[src*="v2rayng"]{padding:6px;background:#fff}
+.app h3{margin:0;font-size:15px}
+.platforms{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;font-size:12px}
+.platforms a{display:inline-flex;align-items:center;gap:2px;min-height:30px}.platforms svg{width:13px;height:13px}
+.import{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:none;min-height:42px;padding:0 14px;font-size:13px;font-weight:800;transition:transform .35s cubic-bezier(.2,1.3,.4,1)}
+.import:active{transform:scale(.94)}.import svg{width:15px;height:15px}
+.windows-downloads{display:flex;gap:6px;flex:none}.windows-downloads .import{direction:ltr}
+.help-copy{margin:0 0 10px;font-size:13px;line-height:1.9}
+.search{display:flex;align-items:center;gap:8px;min-height:46px;margin-bottom:10px;padding:0 12px}
+.search input{flex:1;min-width:0;height:44px;border:0;outline:0;background:transparent;font-size:16px}
+.search input::-webkit-search-cancel-button{opacity:.5}
+.count{display:inline-grid;place-items:center;min-width:24px;height:22px;padding:0 7px;font-size:12px}
+#servers{counter-reset:srv}#servers:empty{display:none}
+.server{position:relative;display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 8px;counter-increment:srv;cursor:pointer;-webkit-user-select:none;user-select:none;content-visibility:auto;contain-intrinsic-size:auto 64px}
+.server .flag{display:grid;place-items:center;flex:none;width:40px;height:40px;font-size:22px;line-height:1}
+.server-name{flex:1;min-width:0;font-size:14.5px;font-weight:700;line-height:1.45;overflow-wrap:anywhere;unicode-bidi:plaintext;text-align:right}
+.server-protocol{display:inline-block;margin:0 6px 0 0!important;padding:0 6px;font-size:10.5px;font-weight:700}
+.server-actions{display:flex;flex:none}.server-actions .icon-button{width:42px;height:42px}
+.server .guardian-tcp{display:none}
+#empty{margin:10px 0;text-align:center;font-size:13px}
+.qr-card{display:grid;justify-items:center;gap:12px;text-align:center}
+#qr-open{padding:12px;background:#fff;transition:transform .4s cubic-bezier(.2,1.3,.4,1)}#qr-open:active{transform:scale(.96)}
+#qr{display:grid;place-items:center;width:180px;height:180px}
+#qr:empty{background:#eee}
+#qr img,#qr canvas{display:block;width:180px!important;height:180px!important;image-rendering:pixelated}
+.qr-note{font-size:12.5px;max-width:280px}
+.actions{position:fixed;z-index:20;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom));display:flex;gap:8px}
+.primary-button,.secondary-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;font-size:15px;font-weight:800;transition:transform .35s cubic-bezier(.2,1.3,.4,1)}
+.primary-button{flex:1}.secondary-button{width:52px;flex:none}.secondary-button span{display:none}
+.primary-button:active,.secondary-button:active{transform:scale(.95)}
+footer{display:flex;justify-content:center;margin-top:22px;font-size:12px}footer span{display:inline-flex;align-items:center;gap:6px}footer svg{width:14px;height:14px}
+dialog{width:min(100% - 24px,380px);max-width:none;margin:auto auto calc(12px + env(safe-area-inset-bottom));padding:18px;border:0;text-align:center}
+#qr-close{margin:-6px -6px 4px auto}
+#large-qr{display:grid;place-items:center;padding:14px;background:#fff}
+#large-qr img,#large-qr canvas{width:min(72vw,300px)!important;height:auto!important;image-rendering:pixelated}
+#qr-dialog-label{margin:12px 0 0;font-size:14px;font-weight:700;overflow-wrap:anywhere}
+#toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom));z-index:40;padding:10px 18px;font-size:13.5px;font-weight:700;opacity:0;transform:translate(-50%,12px);pointer-events:none;transition:opacity .3s,transform .45s cubic-bezier(.2,1.3,.4,1)}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+#load-gate{position:fixed;left:16px;right:16px;bottom:calc(88px + env(safe-area-inset-bottom));z-index:30;padding:14px;text-align:center;font-size:13px}
+#load-gate p{margin:0 0 10px}#load-gate .primary-button{max-width:240px;margin:0 auto;width:100%}
+.layout,.main-col,.side{display:grid;gap:14px}.main-col{min-width:0}
+.server.copied .server-name::after{content:"کپی شد"!important}
+@media (max-width:520px){.app-windows{flex-wrap:wrap}.app-windows .windows-downloads{width:100%}.app-windows .windows-downloads .import{flex:1}}
+@media (max-width:360px){main{padding-inline:12px}.app{flex-wrap:wrap}.app .import{flex:1}.windows-downloads{width:100%}.windows-downloads .import{flex:1}}
+@media (min-width:860px){
+ main{padding-bottom:40px}
+ .layout{grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start}
+ .side{position:sticky;top:20px}
+ .tabs{display:none!important}
+ .actions{position:static;flex-direction:column}
+ .secondary-button{width:auto}.secondary-button span{display:inline}
+ #toast{bottom:28px}#load-gate{left:50%;right:auto;bottom:28px;transform:translateX(-50%);width:min(420px,90vw)}
+ dialog{margin:auto}
+}
+@media (max-width:859px){
+ [data-tabs] .tabs{display:grid}
+ [data-tabs] body[data-tab=connect] .panel:not(#p-connect),[data-tabs] body[data-tab=servers] .panel:not(#p-servers),[data-tabs] body[data-tab=qr] .panel:not(#p-qr){display:none}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ================= داشبورد · آبی نفتی ================= */
+.d4{color-scheme:dark;--acc:#000;--acc-text:#eceef2;--on-acc:#fff;--acc-edge:inset 0 0 0 1px rgb(255 255 255/.16);--tile:#15171b;--tile-2:#1e2127;--mut:#8a8f98;--mono:ui-monospace,"SF Mono","Cascadia Mono",Consolas,Vazir,monospace}
+.d4 body.low{--acc-text:#ffc95c}.d4 body[data-state=expired]{--acc-text:#ff8a8d}.d4 body[data-state=unlimited]{--acc-text:#eceef2}
+.d4 body{background:#0a0b0d;color:#eceef2}
+.d4 .secure{color:var(--mut)}.d4 .secure svg{color:var(--acc-text)}
+.d4 .pass{display:grid;gap:12px}
+.d4 .pass-top{flex-direction:column-reverse;align-items:center;text-align:center}
+.d4 .pass-top>div:first-child{display:grid;justify-items:center}
+.d4 .eyebrow{font-size:12px;color:var(--mut)}
+.d4 h1{font-size:22px;font-weight:800;text-align:center}
+.d4 .identity-meta{justify-content:center;margin-top:4px;color:var(--mut)}.d4 .status{color:var(--acc-text)}
+.d4 .perf{display:none}
+.d4 .figures{gap:8px}
+.d4 .figure,.d4 .pass-foot>span{padding:12px 14px;border-radius:16px;background:var(--tile)}
+.d4 #volume-label,.d4 .figure .muted{font-size:11.5px;color:var(--mut)}
+.d4 .big-number{font-family:var(--mono);font-size:28px;font-weight:700}.d4 .big-number small{font-size:12px;color:var(--mut)}
+.d4 .days{font-size:12px;color:var(--mut)}.d4 .days strong{font-size:28px;color:#fff}
+.d4 .gauge{display:none}
+/* linear usage bar: white fill on a dark track */
+.d4 .pass-top{order:0}.d4 #percent{order:1}.d4 .progress{order:2}.d4 .figures{order:3}.d4 .pass-foot{order:4}
+.d4 #percent[hidden]{display:flex!important;justify-content:space-between;align-items:baseline;margin-top:6px;font-size:13px;font-weight:700;color:#fff}
+.d4 .progress{height:12px;border-radius:999px;background:#23262c;box-shadow:inset 0 0 0 1px rgb(255 255 255/.04)}
+.d4 .progress span{border-radius:999px;background:#fff;box-shadow:0 0 14px rgb(255 255 255/.35)}
+.d4 .pass-foot{display:grid;grid-template-columns:1fr auto;gap:8px}
+.d4 #usage-caption{color:var(--mut)}.d4 #plan{color:var(--acc-text);font-weight:700}
+.d4 .disclosure{padding:0 14px;border-radius:14px;color:var(--mut);background:var(--tile)}
+.d4 .stats{gap:8px;margin-top:8px}.d4 .stats div{border-radius:14px;background:var(--tile)}.d4 .stats dt{color:var(--mut)}.d4 .stats dd{font-family:var(--mono)}
+.d4 .tabs{position:sticky;top:max(8px,env(safe-area-inset-top));z-index:15;grid-template-columns:repeat(3,1fr);margin:4px 0;padding:4px;border-radius:16px;background:rgb(21 23 27/.9);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+.d4 .tabs button{display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;border-radius:12px;font-size:13.5px;font-weight:700;color:var(--mut);transition:color .25s,background .3s}
+.d4 .tabs button svg{width:16px;height:16px}
+.d4 .tabs button[aria-selected=true]{color:var(--on-acc);background:var(--acc);box-shadow:var(--acc-edge)}
+.d4 .panel{animation:d4in .35s cubic-bezier(.22,1,.36,1)}
+@keyframes d4in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.d4 .group-title h2{color:var(--mut);font-size:13px}
+.d4 .step{padding:12px 14px;border-radius:16px;background:var(--tile)}
+.d4 .step>b{border-radius:8px;font-family:var(--mono);color:var(--on-acc);background:var(--acc);box-shadow:var(--acc-edge)}
+.d4 .step p,.d4 .help-copy{color:var(--mut)}
+/* 1px gaps show the divider colour, so lines stay even whatever order the recommended app takes */
+.d4 .apps{gap:1px;overflow:hidden;border-radius:16px;background:rgb(255 255 255/.07)}
+.d4 .app{padding:12px 14px;background:var(--tile)}
+.d4 .platforms{color:var(--mut)}.d4 .platforms a{color:var(--acc-text)}
+.d4 .import{border-radius:10px;color:var(--on-acc);background:var(--acc);box-shadow:var(--acc-edge)}
+.d4 .windows-downloads .import{color:#eee;background:var(--tile-2)}
+.d4 .app.rec h3::after{content:"پیشنهادی";margin-inline-start:7px;padding:0 6px;border-radius:5px;font-size:10.5px;color:var(--on-acc);background:var(--acc);box-shadow:var(--acc-edge)}
+.d4 .search{border-radius:14px;background:var(--tile)}.d4 .search svg,.d4 .search input::placeholder{color:var(--mut)}
+.d4 .count{border-radius:8px;font-family:var(--mono);color:var(--on-acc);background:var(--acc);box-shadow:var(--acc-edge)}
+.d4 #servers{border-radius:16px;overflow:hidden;background:var(--tile)}
+.d4 .server{padding:10px 14px 10px 6px}
+.d4 .server+.server{border-top:1px solid rgb(255 255 255/.06)}
+.d4 .server::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;background:#30d158;box-shadow:0 0 8px #30d158}
+.d4 body[data-state=expired] .server::before{background:#ff453a;box-shadow:0 0 8px #ff453a}
+.d4 .server .flag{width:36px;height:36px;border-radius:10px;background:var(--tile-2)}
+.d4 .server-name{font-family:var(--mono);font-size:14px}
+.d4 .server-name::after{content:"لمس برای کپی";display:block;font-family:Vazir,sans-serif;font-size:11.5px;font-weight:400;color:var(--mut);direction:rtl;text-align:right}
+.d4 .server-protocol{border-radius:5px;color:var(--on-acc);background:var(--acc);box-shadow:var(--acc-edge)}
+.d4 .server-actions .icon-button{color:var(--mut)}
+.d4 .server:active{background:var(--tile-2)}.d4 .server.copied .server-name::after{color:#30d158}
+.d4 .qr-card{padding:20px;border-radius:20px;background:var(--tile)}
+.d4 #qr-open{border-radius:16px}.d4 .qr-note{color:var(--mut)}
+.d4 .actions{padding:8px;border-radius:22px;background:rgb(21 23 27/.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);box-shadow:inset 0 0 0 1px rgb(255 255 255/.06)}
+.d4 .primary-button{border-radius:16px;color:var(--on-acc);background:var(--acc);box-shadow:var(--acc-edge)}
+.d4 .secondary-button{border-radius:16px;background:var(--tile-2)}
+.d4 footer{color:var(--mut)}
+.d4 #toast{border-radius:12px;color:var(--on-acc);background:var(--acc);box-shadow:var(--acc-edge)}
+.d4 #load-gate{border-radius:16px;color:var(--mut);background:var(--tile)}.d4 #load-gate .primary-button{color:var(--on-acc);background:var(--acc);border-radius:12px}
+.d4 dialog{border-radius:24px;color:#fff;background:var(--tile)}.d4 #large-qr{border-radius:16px}
+.d4 .icon-button:hover{background:var(--tile-2)}
+
+#p-connect .group-title{justify-content:flex-end;margin-bottom:2px}
+/* the small info button is a disclosure too: keep it plain */
+html .icon-button.disclosure{border:0!important;box-shadow:none!important;background:none!important;padding:0!important;min-height:0}
+/* skeletons while loading */
+.loading #remaining,.loading h1,.loading #days{color:transparent!important;border-radius:6px;background:rgb(128 128 128/.25);animation:sk 1.2s ease-in-out infinite alternate}
+.loading h1{width:60%;min-width:140px}.loading h1::after{content:none}
+@keyframes sk{to{opacity:.45}}
+</style>
+<script defer src="server-labels.js"></script>
+<script defer src="assets/qrcode.js"></script><script defer src="assets/lucide.js"></script><script defer src="live-wireguard-v2.js?v=20261011-download-v2"></script>
+</head>
+<body class="loading" data-tab="connect">
+<div id="load-gate" role="status">در حال دریافت اطلاعات اشتراک...</div>
+<main>
+<header><span class="brand-mark" aria-hidden="true"><i data-lucide="shield-check"></i></span><span class="secure"><i data-lucide="shield-check"></i> مدیریت اشتراک</span></header>
+
+<div class="layout">
+<div class="main-col">
+ <section class="pass" aria-labelledby="usage-title">
+  <div class="pass-top">
+   <div><div class="eyebrow">فضای اختصاصی شما</div><h1 dir="auto">...</h1>
+    <div class="identity-meta"><span id="status" class="status"><b></b> در حال بررسی</span><span></span></div></div>
+   <div class="gauge" aria-hidden="true"><span><span id="gauge-num">--</span><small>باقی‌مانده</small></span></div>
+  </div>
+  <div class="perf" aria-hidden="true"></div>
+  <h2 id="usage-title" hidden>وضعیت اشتراک</h2>
+  <div class="figures">
+   <div class="figure f-vol"><span class="muted" id="volume-label">حجم باقی‌مانده</span><div class="big-number" dir="ltr"><span id="remaining">--</span><small>GB</small></div></div>
+   <div class="figure f-days"><span class="muted">اعتبار</span><div class="days"><i data-lucide="hourglass"></i><strong id="days">--</strong> باقی‌مانده</div></div>
+  </div>
+  <div class="progress" role="progressbar" aria-label="حجم باقی مانده" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+  <div class="ascii" aria-hidden="true"></div>
+  <div class="pass-foot"><span id="usage-caption">--</span><span id="plan">--</span></div>
+  <span id="percent" hidden>--</span>
+ </section>
+ <button class="disclosure" aria-expanded="false" aria-controls="usage-more"><span>جزئیات مصرف و اعتبار</span><i data-lucide="chevron-down"></i></button>
+ <div class="expand" id="usage-more"><div><dl class="stats"><div><dt><i data-lucide="arrow-down"></i> دانلود</dt><dd>--</dd></div><div><dt><i data-lucide="arrow-up"></i> آپلود</dt><dd>--</dd></div><div><dt>شروع اشتراک</dt><dd>--</dd></div><div><dt>پایان اشتراک</dt><dd>--</dd></div></dl></div></div>
+
+ <nav class="tabs" role="tablist" aria-label="بخش‌های اشتراک">
+  <button role="tab" id="t-connect" aria-controls="p-connect" aria-selected="true" data-tab="connect"><i data-lucide="plug-zap"></i>اتصال</button>
+  <button role="tab" id="t-servers" aria-controls="p-servers" aria-selected="false" data-tab="servers"><i data-lucide="server"></i>سرورها</button>
+  <button role="tab" id="t-qr" aria-controls="p-qr" aria-selected="false" data-tab="qr"><i data-lucide="qr-code"></i>کد QR</button>
+ </nav>
+
+ <section class="panel" id="p-connect" aria-label="اتصال">
+  <div class="group-title"><button class="icon-button disclosure" title="راهنمای اتصال" aria-label="راهنمای اتصال" aria-expanded="false" aria-controls="app-help"><i data-lucide="info"></i></button></div>
+  <div class="expand" id="app-help"><div><p class="help-copy">ابتدا برنامه مناسب دستگاه خود را نصب کنید. سپس «افزودن اشتراک» را بزنید تا سرورها وارد برنامه شوند. برای دریافت تغییرات، اشتراک را داخل برنامه به‌روزرسانی کنید.</p></div></div>
+  <div class="steps">
+   <div class="apps">
+    <article class="app app-v2box"><div class="app-brand"><img src="assets/v2box-icon.png" alt="" width="44" height="44"><div><h3>V2Box</h3><div class="platforms"><a href="https://apps.apple.com/us/app/v2box-v2ray-client/id6446814690" target="_blank" rel="noopener">iOS <i data-lucide="arrow-up-right"></i></a><span>·</span><a href="https://play.google.com/store/apps/details?id=dev.hexasoftware.v2box" target="_blank" rel="noopener">Android <i data-lucide="arrow-up-right"></i></a></div></div></div><button class="import" data-app="v2box"><i data-lucide="plus"></i><span>افزودن</span></button></article>
+    <article class="app app-v2rayng"><div class="app-brand"><img src="assets/v2rayng-icon.png" alt="" width="44" height="44"><div><h3>v2rayNG</h3><div class="platforms"><a href="https://github.com/2dust/v2rayNG/releases" target="_blank" rel="noopener">Android <i data-lucide="arrow-up-right"></i></a></div></div></div><button class="import" data-app="v2rayng"><i data-lucide="plus"></i><span>افزودن</span></button></article>
+    <article class="app app-windows"><div class="app-brand"><img src="assets/v2rayn-icon-20261001.png" alt="" width="44" height="44" loading="lazy" decoding="async"><div><h3>v2rayN</h3><div class="platforms"><i data-lucide="monitor"></i><span>Windows</span></div></div></div><div class="windows-downloads"><a class="import" href="https://github.com/2dust/v2rayN/releases/latest/download/v2rayN-windows-64.zip" aria-label="دانلود v2rayN برای ویندوز ۶۴ بیت"><i data-lucide="download"></i><span>64-bit</span></a><a class="import" href="https://github.com/2dust/v2rayN/releases/latest/download/v2rayN-windows-86.zip" aria-label="دانلود v2rayN برای ویندوز ۳۲ بیت"><i data-lucide="download"></i><span>32-bit</span></a></div></article>
+   </div>
+  </div>
+ </section>
+
+ <section class="panel servers-section" id="p-servers" aria-labelledby="h-servers">
+  <div class="group-title"><h2 id="h-servers"><i data-lucide="server"></i> سرورهای اشتراک <span class="count" id="server-count">--</span></h2></div>
+  <label class="search"><i data-lucide="search"></i><input id="search" placeholder="جستجوی نام یا کشور سرور" type="search" enterkeyhint="search" autocomplete="off"></label>
+  <div id="servers"></div><p id="empty" hidden>سروری با این نام پیدا نشد.</p>
+ </section>
+</div>
+
+<aside class="side">
+ <section class="panel" id="p-qr" aria-labelledby="h-qr">
+  <div class="group-title qr-title"><h2 id="h-qr"><i data-lucide="scan-line"></i> کد اشتراک</h2></div>
+  <div class="qr-card"><button id="qr-open" aria-label="بزرگ کردن کد اشتراک"><div id="qr"></div></button><div class="qr-note">این کد را با برنامه‌ی دستگاه دیگرت اسکن کن تا اشتراک روی آن هم اضافه شود.</div></div>
+ </section>
+ <div class="actions"><button class="primary-button" id="copy-sub"><i data-lucide="copy"></i> کپی لینک اشتراک</button><button class="secondary-button" id="share" aria-label="اشتراک‌گذاری"><i data-lucide="share-2"></i><span>اشتراک‌گذاری</span></button></div>
+</aside>
+</div>
+<footer><span><i data-lucide="lock-keyhole"></i> لینک اشتراک شما شخصی است.</span></footer>
+</main>
+
+<dialog id="qr-dialog" aria-labelledby="qr-dialog-label"><button class="icon-button" id="qr-close" aria-label="بستن"><i data-lucide="x"></i></button><div id="large-qr"></div><p id="qr-dialog-label">کد اشتراک شما</p></dialog>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+(function(){
+ const $=s=>document.querySelector(s),body=document.body,html=document.documentElement;
+ const pick={ios:'.app-v2box',android:'.app-v2rayng',windows:'.app-windows'}[html.dataset.os];
+ if(pick)$(pick).classList.add('rec');
+ /* tabs: only concepts that set data-tabs use them, and only on phones */
+ const tabs=[...document.querySelectorAll('.tabs [role=tab]')];
+ if(html.hasAttribute('data-tabs'))tabs.forEach(t=>{t.parentNode.setAttribute('role','tablist');document.getElementById(t.getAttribute('aria-controls')).setAttribute('role','tabpanel')});
+ function select(name,focus){body.dataset.tab=name;tabs.forEach(t=>{const on=t.dataset.tab===name;t.setAttribute('aria-selected',on);t.tabIndex=on?0:-1;if(on&&focus)t.focus()})}
+ tabs.forEach((t,i)=>{t.addEventListener('click',()=>select(t.dataset.tab));t.addEventListener('keydown',e=>{const k=e.key==='ArrowLeft'?1:e.key==='ArrowRight'?-1:0;if(k){e.preventDefault();select(tabs[(i+k+tabs.length)%tabs.length].dataset.tab,true)}})});
+ select('connect');
+ /* gauge, ascii bar and low state mirror the progress bar the page script fills */
+ const bar=$('.progress'),fmt=new Intl.NumberFormat('fa-IR',{maximumFractionDigits:0});
+ new MutationObserver(()=>{const v=+bar.getAttribute('aria-valuenow')||0,st=body.dataset.state;
+  $('.pass').style.setProperty('--p',v);
+  $('#gauge-num').textContent=st==='expired'?'۰٪':st==='unlimited'?'∞':fmt.format(v)+'٪';
+  const n=Math.round(v/5);$('.ascii').textContent='['+'█'.repeat(n)+'░'.repeat(20-n)+'] '+(st==='unlimited'?'unlimited':Math.round(v)+'%');
+  body.classList.toggle('low',st==='active'&&v<15)}).observe(bar,{attributes:true,attributeFilter:['aria-valuenow']});
+ /* tap a server row = copy that server */
+ $('#servers').addEventListener('click',e=>{const row=e.target.closest('.server');if(!row)return;
+  const own=e.target.closest('.server-actions button'),copyBtn=row.querySelector('.server-actions button:last-child');
+  if(!copyBtn||(own&&own!==copyBtn))return;if(!own)copyBtn.click();
+  setTimeout(()=>{if($('#toast').textContent!=='کپی شد')return;row.classList.add('copied');clearTimeout(row._t);row._t=setTimeout(()=>row.classList.remove('copied'),1600)},120)});
+})();
+</script>
+</body></html>
