@@ -6,7 +6,8 @@ downloaded from the deployed service. The HTML is 27,147 bytes, SHA-256
 All asset hashes are recorded in `source-manifest.json`; the exported frontend
 was left byte-for-byte unchanged.
 
-- 29 backend/configuration tests passed with synthetic infrastructure.
+- 30 backend/configuration tests passed with synthetic infrastructure, including
+  waiting for restored worker readiness before rollback completes.
 - 13 Chrome browser scenarios passed, including signed/legacy, plain/base64,
   mixed protocols, expiry/unlimited/error states, WireGuard downloads, QR,
   clipboard, search, dual-stack profiles and invalid-profile rejection.
@@ -23,8 +24,9 @@ was left byte-for-byte unchanged.
   credentials, production nginx snapshots and original backend secrets are not
   included in the public repository.
 
-The GitHub workflow additionally tests real systemd installation/upgrade/rollback
-on disposable Ubuntu 22.04 and 24.04 runners and runs the browser checks.
+The [GitHub verification run](https://github.com/Starmanfromskies/vtworain-subscription/actions/runs/38203254367)
+passed all three jobs: real systemd installation/HTTPS upgrade/rollback on
+disposable Ubuntu 22.04 and 24.04 runners, and the 13 browser scenarios.
 No installation or configuration change was made to the live customer services.
 Let's Encrypt issuance requires the actual destination domain/DNS and is not
 claimed to have been issued for an unspecified new server.
