@@ -7,12 +7,13 @@ import mimetypes
 import os
 import re
 import ssl
+import http.client
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler, ProxyHandler, HTTPSHandler
 
-VERSION = '1.0.0'
+VERSION = '1.1.0'
 ROOT = Path(__file__).resolve().parent
 ASSET_BASE = '/tg3xbot-assets/redesign-20260915-server-qr-v1/'
 IDENTIFIER = r'(?:[A-Za-z0-9_-]{6,80}|[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43})'
@@ -56,12 +57,36 @@ def validate_config(config):
     config['mode'] = config.get('mode', 'passthrough')
     if config.get('latency_upstream'):
         config['latency_upstream'] = validate_origin(config['latency_upstream'])
+    if config.get('upstream_tls_name'):
+        if not re.fullmatch(r'[A-Za-z0-9.-]{1,253}',config['upstream_tls_name']):raise ValueError('Invalid upstream TLS name')
+        file=config.get('upstream_ca_file','')
+        if not file.startswith('/') or '..' in Path(file).parts:raise ValueError('Use an absolute upstream CA certificate path')
     return config
+
+
+class NamedTLSConnection(http.client.HTTPSConnection):
+    def __init__(self,host,tls_name,context,**kwargs):
+        super().__init__(host,context=context,**kwargs);self.tls_name=tls_name
+    def connect(self):
+        http.client.HTTPConnection.connect(self)
+        self.sock=self._context.wrap_socket(self.sock,server_hostname=self.tls_name)
+
+
+class NamedTLSHandler(HTTPSHandler):
+    def __init__(self,name,context):
+        super().__init__(context=context);self.name=name
+    def https_open(self,request):
+        return self.do_open(lambda host,**kw:NamedTLSConnection(host,self.name,self._context,**kw),request)
 
 
 def fetch(config, path, environ, origin=None):
     # Never inherit system HTTP proxies or follow a private subscription to another host.
-    opener = build_opener(ProxyHandler({}), NoRedirect(), HTTPSHandler(context=ssl.create_default_context()))
+    context=ssl.create_default_context();handler=HTTPSHandler(context=context)
+    if config.get('upstream_tls_name') and not origin:
+        context.load_verify_locations(cafile=config['upstream_ca_file'])
+        if hasattr(ssl,'VERIFY_X509_PARTIAL_CHAIN'):context.verify_flags|=ssl.VERIFY_X509_PARTIAL_CHAIN
+        handler=NamedTLSHandler(config['upstream_tls_name'],context)
+    opener = build_opener(ProxyHandler({}), NoRedirect(), handler)
     url = (origin or config['upstream']) + path
     headers = {'Accept-Encoding': 'identity', 'User-Agent': environ.get('HTTP_USER_AGENT', 'Subscription-Gateway')[:1024],
                'Accept': environ.get('HTTP_ACCEPT', '*/*')[:1024]}

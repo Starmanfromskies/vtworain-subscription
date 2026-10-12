@@ -9,7 +9,7 @@ from app import validate_config
 
 MARKER='# Managed by vtworain-subscription installer'
 
-def render(domain, upstream, mode, port, app_port, tls, certificate='', key='', latency=''):
+def render(domain, upstream, mode, port, app_port, tls, certificate='', key='', latency='',discovered=None):
     if not re.fullmatch(r'(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[A-Za-z]{2,63}',domain):
         raise ValueError('Use a fully qualified domain, without scheme, port or path')
     if any(not 1<=int(p)<=65535 for p in (port,app_port)) or int(port)==int(app_port):
@@ -17,6 +17,10 @@ def render(domain, upstream, mode, port, app_port, tls, certificate='', key='', 
     if tls not in ('letsencrypt','existing','off'):raise ValueError('Unknown TLS mode')
     public=('http' if tls=='off' else 'https')+'://'+domain+((':'+str(port)) if port!=(80 if tls=='off' else 443) else '')
     config=validate_config({'upstream':upstream,'public_url':public,'mode':mode,'latency_upstream':latency})
+    if discovered:
+        for name in ('upstream_tls_name','upstream_ca_file'):
+            if name in discovered:config[name]=discovered[name]
+        config=validate_config(config)
     if tls!='off':
         for path in (certificate,key):
             if not re.fullmatch(r'/[A-Za-z0-9_./-]+',path) or '..' in Path(path).parts:
@@ -102,6 +106,8 @@ if __name__=='__main__':
     for name in ('domain','upstream','mode','tls','out'):parser.add_argument('--'+name,required=True)
     parser.add_argument('--port',type=int,required=True);parser.add_argument('--app-port',type=int,required=True)
     parser.add_argument('--certificate',default='');parser.add_argument('--key',default='');parser.add_argument('--latency',default='')
-    a=parser.parse_args();files=render(a.domain,a.upstream,a.mode,a.port,a.app_port,a.tls,a.certificate,a.key,a.latency)
+    parser.add_argument('--discovered')
+    a=parser.parse_args();extra=json.loads(Path(a.discovered).read_text()) if a.discovered else None
+    files=render(a.domain,a.upstream,a.mode,a.port,a.app_port,a.tls,a.certificate,a.key,a.latency,extra)
     output=Path(a.out);output.mkdir(parents=True,exist_ok=True)
     for name,content in files.items():(output/name).write_text(content,encoding='utf-8')

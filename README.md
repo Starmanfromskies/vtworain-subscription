@@ -1,7 +1,9 @@
 # VTWorain custom subscription page
 
 نسخهٔ جدید ساب کاستوم، به همراه تمام فایل‌های صفحه و نصب‌کنندهٔ سادهٔ لینوکس.
-نصب‌کننده دامنه، آدرس پنل/ساب مبدأ و تنظیمات گواهی را می‌پرسد. حساب‌ها و
+نصب‌کننده دامنه و تنظیمات گواهی را می‌پرسد، پاسارگارد محلی را خودکار پیدا می‌کند
+و پس از تأیید سرویس، فقط آدرس عمومی اشتراک را در پنل ثبت می‌کند. آدرس ورود
+و مدیریت پنل تغییر نمی‌کند. حساب‌ها و
 کانفیگ‌های کاربران از پنل موجود دریافت می‌شوند؛ پایگاه دادهٔ مشتریان همراه
 این پروژه نیست.
 
@@ -14,19 +16,43 @@ curl -fsSL https://raw.githubusercontent.com/Starmanfromskies/vtworain-subscript
 ```
 
 If already logged in as root, omit `sudo`. The bootstrap downloads the pinned
-`v1.0.0` release. Alternatively extract the release ZIP and run
+`v1.1.0` release. Alternatively extract the release ZIP and run
 `sudo bash install.sh` in its directory.
 
 The installer asks for:
 
 1. A subscription domain whose DNS points to the new server.
-2. The base URL of the existing subscription backend/panel, **without a customer
-   subscription token**, username, password or URL query.
-3. `passthrough` for an existing custom subscription service, or `pasarguard` for
-   the native PasarGuard panel. Native `?raw=1` requests use `links_base64`.
-4. TLS mode: automatic Let's Encrypt, existing full-chain/key files, or HTTP
+2. TLS mode: automatic Let's Encrypt, existing full-chain/key files, or HTTP
    behind an independently managed TLS proxy.
-5. Email/Let's Encrypt terms or the certificate paths, and a listener port.
+3. Email/Let's Encrypt terms or the certificate paths, and a listener port.
+
+The panel must be installed on the same machine. The installer discovers a
+running Docker or native Python PasarGuard runtime, verifies access using an
+existing active owner, and chooses the native backend mode automatically.
+Administrative tokens are short-lived, remain inside the panel runtime and
+are never printed, exported or stored. No new administrator is created.
+
+Only `subscription.url_prefix` is changed, after gateway/HTTPS health checks.
+Its value is built from the domain and port you entered; no customer domain is
+hard-coded. The panel login address, listener port, DNS records, users, quotas,
+credentials and VPN nodes remain unchanged. Other subscription settings are
+retained, including announcements and response headers. Explicit per-admin
+subscription-domain overrides remain under your control.
+
+If multiple supported panels run locally, select the intended one with
+`--panel-container NAME`. The installer refuses to guess. A panel using only
+a Unix socket needs an explicit accessible HTTP upstream; it is not silently
+reconfigured.
+
+Advanced flags are available for an independently managed/remote upstream:
+
+```bash
+sudo bash install.sh --no-panel-update --upstream https://origin.example.com --mode passthrough
+```
+
+`pasarguard` handles native panel exports; `passthrough` relays an already
+customized subscription gateway. Neither is asked during normal local setup.
+The explicit override does not auto-edit a different/remote panel.
 
 Use a reachable upstream with valid HTTPS, or a trusted loopback/private HTTP
 backend. Do not point the upstream back at the new public subscription domain:
@@ -57,9 +83,10 @@ headers and WireGuard profiles are retained. A failed upstream authentication
 never becomes a successful custom browser page. Panel admin/API routes are not
 forwarded. No administrative panel credentials are required by this gateway.
 
-To make newly issued panel/bot links use this domain, set the **subscription URL
-prefix** in your panel to the new endpoint. This installer does not edit the
-panel, bots, customer accounts, Xray configuration or existing DNS records.
+The normal installer automatically sets the panel's **subscription URL prefix**
+to the verified new endpoint. The advanced `--no-panel-update` mode leaves that
+setting under your control. Neither mode edits the panel login domain, bots,
+customer accounts, Xray configuration or existing DNS records.
 It installs the subscription frontend/gateway, not a complete VPN control panel.
 
 ## Files and operation
@@ -72,6 +99,8 @@ It installs the subscription frontend/gateway, not a complete VPN control panel.
 - `app.py`: configurable, subscription-only gateway; verified upstream TLS,
   no external redirects, no subscription request logging or customer cache.
 - `deploy.py`, `install.sh`, `backup.py`: installer/configuration/rollback.
+- `panel.py`, `panel_bridge.py`: local panel discovery and a conditional,
+  field-only subscription prefix update with native API cache refresh.
 - `source-manifest.json`: source/asset hashes verified against the current page.
 - `tests/`: synthetic backend/browser and isolated Linux installation tests.
 
@@ -98,8 +127,9 @@ current deployed frontend contains no separate latency companion script.
 
 ## Backups and rollback
 
-Before managed changes, the installer backs up only its own runtime/config/site
-and service state under `/var/backups/vtworain-subscription/<timestamp>`.
+Before managed changes, the installer backs up its own runtime/config/site,
+service state and relevant previous subscription settings under
+`/var/backups/vtworain-subscription/<timestamp>`.
 Failures restore those files automatically. The exact manual rollback command
 is printed on successful installation:
 
@@ -108,7 +138,9 @@ sudo python3 /var/backups/vtworain-subscription/<timestamp>/rollback.py restore 
 ```
 
 Backups may contain your upstream address/configuration; they are root-only.
-Rollback preserves unrelated nginx sites. Installed OS packages, certificates
+Rollback restores only the prefix it changed, and preserves unrelated panel
+settings and nginx sites. An independent later prefix edit is not overwritten.
+Installed OS packages, certificates
 issued by Certbot and additive firewall rules remain installed; no customer
 database is restored or overwritten.
 
@@ -141,6 +173,10 @@ npm install --no-save playwright
 npx playwright install --with-deps chrome
 node tests/browser.cjs
 ```
+
+Panel database regression tests additionally need SQLAlchemy and aiosqlite:
+`python3 -m pip install 'SQLAlchemy>=2.0,<2.1' aiosqlite` in your test environment.
+Production uses the packages already installed inside your panel runtime.
 
 The Linux installation tests run only on disposable CI runners and explicitly
 refuse a regular production machine. They check a fresh HTTP installation,

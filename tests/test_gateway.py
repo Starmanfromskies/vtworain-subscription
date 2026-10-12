@@ -2,6 +2,10 @@ import io
 import json
 import sys
 import threading
+import tempfile
+import subprocess
+import shutil
+import ssl
 import unittest
 from unittest.mock import patch,MagicMock
 from pathlib import Path
@@ -57,7 +61,7 @@ class GatewayTest(unittest.TestCase):
     def test_static_asset_no_upstream_request(self):
         result=self.call(app.ASSET_BASE+'assets/qrcode.js');self.assertEqual(result['status'],200);self.assertEqual(self.requests,[])
     def test_health_is_local(self):
-        self.assertEqual(json.loads(self.call('/healthz')['body']),{'status':'ok','version':'1.0.0'});self.assertEqual(self.requests,[])
+        self.assertEqual(json.loads(self.call('/healthz')['body']),{'status':'ok','version':app.VERSION});self.assertEqual(self.requests,[])
     def test_disabled_latency_not_fabricated(self):
         self.assertEqual(json.loads(self.call('/tg3xbot-latency/synthetic123')['body'])['profiles'],[]);self.assertEqual(self.requests,[])
     def test_foreign_redirect_rejected(self):
@@ -89,6 +93,22 @@ class GatewayTest(unittest.TestCase):
             result=app.fetch(config,'/sub/'+TOKEN,{'HTTP_COOKIE':'private','HTTP_AUTHORIZATION':'private'})
             self.assertEqual(result[2],b'synthetic');self.assertNotIn('Cookie',seen);self.assertNotIn('Authorization',seen)
         finally:server.shutdown();server.server_close();thread.join()
+    @unittest.skipUnless(shutil.which('openssl'),'openssl required for the real TLS fixture')
+    def test_named_tls_upstream_verifies_certificate_and_hostname(self):
+        with tempfile.TemporaryDirectory() as directory:
+            cert=Path(directory)/'cert.pem';key=Path(directory)/'key.pem'
+            subprocess.run(['openssl','req','-x509','-nodes','-newkey','rsa:2048','-keyout',str(key),'-out',str(cert),'-days','1','-subj','/CN=panel.example.test','-addext','subjectAltName=DNS:panel.example.test'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=True)
+            class Handler(BaseHTTPRequestHandler):
+                def log_message(self,*a):pass
+                def do_GET(self):self.send_response(200);self.end_headers();self.wfile.write(b'synthetic-tls')
+            server=ThreadingHTTPServer(('127.0.0.1',0),Handler)
+            context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.load_cert_chain(cert,key);server.socket=context.wrap_socket(server.socket,server_side=True)
+            thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+            config=dict(CONFIG,upstream='https://127.0.0.1:'+str(server.server_port),upstream_tls_name='panel.example.test',upstream_ca_file=str(cert))
+            try:
+                self.assertEqual(app.fetch(config,'/sub/'+TOKEN,{})[2],b'synthetic-tls')
+                with self.assertRaises(Exception):app.fetch(dict(config,upstream_tls_name='wrong.example.test'),'/sub/'+TOKEN,{})
+            finally:server.shutdown();server.server_close();thread.join()
 
 class DeployTest(unittest.TestCase):
     def test_rollback_waits_for_worker_readiness(self):

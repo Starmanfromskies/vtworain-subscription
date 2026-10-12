@@ -15,7 +15,9 @@ FILES=[Path('/etc/vtworain-subscription/config.json'),
        Path('/etc/nginx/conf.d/vtworain-subscription.conf'),
        Path('/etc/nginx/conf.d/vtworain-subscription-rate.conf'),
        Path('/etc/systemd/system/vtworain-subscription.service'),
-       Path('/etc/letsencrypt/renewal-hooks/deploy/vtworain-subscription.sh')]
+       Path('/etc/letsencrypt/renewal-hooks/deploy/vtworain-subscription.sh'),
+       Path('/etc/vtworain-subscription/panel.json'),
+       Path('/etc/vtworain-subscription/panel-ca.pem')]
 
 def quiet(*args):
     return subprocess.run(args,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
@@ -56,6 +58,8 @@ def capture(directory):
 def restore(directory):
     state=json.loads((directory/'state.json').read_text())
     assert [item['path'] for item in state['files']]==[str(p) for p in FILES]
+    if (directory/'panel-update.json').exists():
+        subprocess.run(['python3',str(directory/'panel.py'),'restore','--backup',str(directory)],check=True)
     quiet('systemctl','stop','vtworain-subscription')
     if RUNTIME.exists():
         if RUNTIME.is_symlink() or not (RUNTIME/'.managed-by-installer').exists():raise ValueError('Refusing to remove an unowned runtime directory')

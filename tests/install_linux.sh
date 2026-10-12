@@ -8,9 +8,9 @@ python3 tests/mock_upstream.py 18080 &
 UPSTREAM_PID=$!
 trap 'kill "$UPSTREAM_PID" 2>/dev/null || true' EXIT
 sleep 1
-bash install.sh --dry-run --non-interactive --domain subscription.example.test --upstream http://127.0.0.1:18080 --mode passthrough --tls off --port 8080
-if bash install.sh --dry-run --non-interactive --domain 'bad;domain' --upstream http://127.0.0.1:18080 --mode passthrough --tls off --port 8080; then exit 1; fi
-sudo bash install.sh --non-interactive --domain subscription.example.test --upstream http://127.0.0.1:18080 --mode passthrough --tls off --port 8080
+bash install.sh --dry-run --no-panel-update --non-interactive --domain subscription.example.test --upstream http://127.0.0.1:18080 --mode passthrough --tls off --port 8080
+if bash install.sh --dry-run --no-panel-update --non-interactive --domain 'bad;domain' --upstream http://127.0.0.1:18080 --mode passthrough --tls off --port 8080; then exit 1; fi
+sudo bash install.sh --no-panel-update --non-interactive --domain subscription.example.test --upstream http://127.0.0.1:18080 --mode passthrough --tls off --port 8080
 TOKEN="synthetic.$(printf 'A%.0s' {1..43})"
 curl --noproxy '*' --resolve subscription.example.test:8080:127.0.0.1 -fsS -H 'Accept: text/html' "http://subscription.example.test:8080/sub/$TOKEN/" -o /tmp/vtwsub-page.html
 cmp web/index.html /tmp/vtwsub-page.html
@@ -34,7 +34,7 @@ sudo systemctl reload nginx
 CERT_DIR=$(mktemp -d /tmp/vtwsub-ci-cert.XXXXXXXX)
 chmod 755 "$CERT_DIR"
 openssl req -x509 -nodes -newkey rsa:2048 -keyout "$CERT_DIR/key.pem" -out "$CERT_DIR/cert.pem" -days 1 -subj '/CN=subscription.example.test' -addext 'subjectAltName=DNS:subscription.example.test' 2>/dev/null
-sudo env CURL_CA_BUNDLE="$CERT_DIR/cert.pem" bash install.sh --non-interactive --domain subscription.example.test --upstream http://127.0.0.1:18080 --mode pasarguard --tls existing --port 443 --cert-file "$CERT_DIR/cert.pem" --key-file "$CERT_DIR/key.pem"
+sudo env CURL_CA_BUNDLE="$CERT_DIR/cert.pem" bash install.sh --no-panel-update --non-interactive --domain subscription.example.test --upstream http://127.0.0.1:18080 --mode pasarguard --tls existing --port 443 --cert-file "$CERT_DIR/cert.pem" --key-file "$CERT_DIR/key.pem"
 curl --noproxy '*' --cacert "$CERT_DIR/cert.pem" --resolve subscription.example.test:443:127.0.0.1 -fsS "https://subscription.example.test/sub/$TOKEN/?raw=1" -o /tmp/vtwsub-tls-raw.txt
 cmp /tmp/vtwsub-raw.txt /tmp/vtwsub-tls-raw.txt
 cmp /tmp/vtwsub-unrelated.conf /etc/nginx/conf.d/vtwsub-unrelated-ci.conf
